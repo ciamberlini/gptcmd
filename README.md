@@ -109,4 +109,4 @@ This will:
 Feel free to open a pull request or report an issue on the GitHub repository.
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
