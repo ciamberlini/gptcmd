@@ -173,12 +173,12 @@ while $NEED_ANOTHER_ITERATION; do
     done <<< "$COMMANDS"
 
     # Update the prompt with the output of the executed commands
-    PROMPT=$(jq -n --arg os_info "$OS_INFO" --arg prompt "$USER_PROMPT" --arg output "$OUTPUT" \
+    PROMPT=$(jq -n --arg os_info "$OS_INFO" --arg prompt "$USER_PROMPT" --arg output "$OUTPUT" --arg commands "$COMMANDS" \
         '[{"role": "system", "content": "Generate a JSON array of Bash commands for the following user prompt."},
           {"role": "system", "content": "Operating System: \($os_info)"},
           {"role": "system", "content": "Return the commands in JSON format using the following structure: {\"need_another_iteration\": true, \"commands\": [{ \"cmd\": \"command\" }]}"},
           {"role": "user", "content": $prompt},
-          {"role": "assistant", "content": $output}]')
+          {"role": "assistant", "content": "Executed commands:\n\($commands)\nOutput:\n\($output)"}]')
 
     ITERATION=$((ITERATION + 1))
 done
