@@ -63,10 +63,17 @@ setup_config() {
         if [ -z "$TEMPERATURE" ]; then
             TEMPERATURE=0.7
         fi
+        exec < /dev/tty
+        echo -e "\033[1;34mEnter the max tokens (default 150):\033[0m"
+        read MAX_TOKENS
+        if [ -z "$MAX_TOKENS" ]; then
+            MAX_TOKENS=150
+        fi
         sudo bash -c "cat << EOF > $CONFIG_FILE
 OPENAI_API_KEY=$API_KEY
 MODEL=$MODEL
 TEMPERATURE=$TEMPERATURE
+MAX_TOKENS=$MAX_TOKENS
 EOF"
         sudo chmod 600 "$CONFIG_FILE"
     else

@@ -19,6 +19,11 @@ prompt_config_params() {
     if [ -z "$TEMPERATURE" ]; then
         TEMPERATURE=0.7
     fi
+    echo -e "\033[1;34mEnter the max tokens (default 150):\033[0m"
+    read MAX_TOKENS
+    if [ -z "$MAX_TOKENS" ]; then
+        MAX_TOKENS=150
+    fi
 }
 
 # Function to call OpenAI API
@@ -39,13 +44,13 @@ call_openai_completion() {
     local request_data
     request_data=$(jq -n \
         --arg model "$model" \
-        --argjson temperature "$temperature" \
-        --argjson max_tokens "$max_tokens" \
+        --arg temperature "$temperature" \
+        --arg max_tokens "$max_tokens" \
         --argjson messages "$prompt" \
         '{
             model: $model,
-            temperature: $temperature,
-            max_tokens: $max_tokens,
+            temperature: ($temperature | tonumber),
+            max_tokens: ($max_tokens | tonumber),
             messages: $messages
         }')
 
@@ -92,6 +97,7 @@ else
 OPENAI_API_KEY=$API_KEY
 MODEL=$MODEL
 TEMPERATURE=$TEMPERATURE
+MAX_TOKENS=$MAX_TOKENS
 EOF
     echo -e "\033[1;34mConfiguration file created in the current directory.\033[0m"
     source "$LOCAL_CONFIG_FILE"
@@ -131,7 +137,7 @@ while $NEED_ANOTHER_ITERATION; do
     print_section_header "Iteration $ITERATION: Processing..."
 
     # Call OpenAI completion API
-    RESPONSE=$(call_openai_completion "$PROMPT" "$TEMPERATURE" 150 "$MODEL" "$OPENAI_API_KEY")
+    RESPONSE=$(call_openai_completion "$PROMPT" "$TEMPERATURE" "$MAX_TOKENS" "$MODEL" "$OPENAI_API_KEY")
 
     # Extract the JSON commands string from the response
     JSON_COMMANDS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content' | sed -n '/```json/,/```/p' | sed 's/```json//g' | sed 's/```//g')
