@@ -23,14 +23,14 @@ You can install GPTcmd quickly using `curl`:
 
 ```bash
 curl https://gptcmd.sh/gptcmd.sh | sh
-
+```
 ### Clone the Repository
 Alternatively, you can clone the repository and install manually:
 
 ```bash
 git clone https://github.com/ciamberlini/gptcmd.git
 cd gptcmd
-
+```
 ## Install Dependencies
 Make sure you have curl and jq installed. You can install them using your system's package manager:
 
@@ -38,29 +38,29 @@ Make sure you have curl and jq installed. You can install them using your system
 ```bash
 sudo apt-get update
 sudo apt-get install -y curl jq
-
+```
 ### For RHEL/CentOS:
 ```bash
 sudo yum install -y curl jq
-
+```
 ### For Fedora:
 ```bash
 sudo dnf install -y curl jq
-
+```
 ### For Arch Linux:
 ```bash
 sudo pacman -Syu --noconfirm curl jq
-
+```
 ### For openSUSE:
 ```bash
 sudo zypper install -y curl jq
-
+```
 ## Configuration
 Run the script for the first time to configure the API key and other parameters:
 
 ```bash
 ./gptcmd.sh
-
+```
 You will be prompted to enter:
 
 - Your OpenAI API key
@@ -75,7 +75,7 @@ To use GPTcmd, run the script with the desired command:
 
 ```bash
 ./gptcmd.sh "check if Apache is running"
-
+```
 ## Parameters
 - <desired-command>: The command or description of the action you want to perform. GPTcmd will generate Bash commands to fulfill this request.
 
@@ -83,7 +83,7 @@ To use GPTcmd, run the script with the desired command:
 
 ```bash
 ./gptcmd.sh "list all files larger than 100MB"
-
+```
 ### Configuration File
 The configuration file (gptcmd.conf) includes:
 
