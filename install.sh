@@ -70,7 +70,6 @@ download_script() {
 # Setup the configuration file
 setup_config() {
     CONFIG_FILE="$CONFIG_PATH/$CONFIG_FILE_NAME"
-    LOCAL_CONFIG_FILE="./$CONFIG_FILE_NAME"
 
     # Ensure the configuration directory exists
     if [ ! -d "$CONFIG_PATH" ]; then
@@ -81,7 +80,7 @@ setup_config() {
         echo "Creating configuration file at $CONFIG_FILE"
         exec < /dev/tty
         echo -e "\033[1;34mEnter your OpenAI API key:\033[0m"
-        read -s API_KEY
+        read API_KEY
         exec < /dev/tty
         echo -e "\033[1;34mEnter the model to use (e.g., gpt-4o):\033[0m"
         read MODEL
@@ -112,11 +111,12 @@ EOF"
 # Load the configuration file
 load_config() {
     if [ -f "$USER_CONFIG_PATH/$CONFIG_FILE_NAME" ]; then
-        source "$USER_CONFIG_PATH/$CONFIG_FILE_NAME"
+        . "$USER_CONFIG_PATH/$CONFIG_FILE_NAME"
     elif [ -f "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME" ]; then
-        source "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME"
+        . "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME"
     else
         echo "Configuration file not found. Creating a new one..."
+        prompt_config_location
         setup_config
     fi
 }
@@ -126,8 +126,6 @@ main() {
     detect_package_manager
     install_dependencies
     download_script
-    prompt_config_location
-    setup_config
     load_config
     echo "Installation complete. You can now use '$SCRIPT_NAME' from anywhere in your terminal."
     exit 0

@@ -8,7 +8,7 @@ USER_CONFIG_FILE="$USER_CONFIG_DIR/$CONFIG_FILE_NAME"
 # Function to prompt for the API key
 prompt_api_key() {
     echo -e "\033[1;34mEnter your OpenAI API key:\033[0m"
-    read -s API_KEY
+    read API_KEY
     echo
 }
 
@@ -96,9 +96,9 @@ create_user_config_dir() {
 # Check if the configuration file exists and load it
 load_config() {
     if [ -f "$USER_CONFIG_FILE" ]; then
-        source "$USER_CONFIG_FILE"
+        . "$USER_CONFIG_FILE"
     elif [ -f "$GLOBAL_CONFIG_FILE" ]; then
-        source "$GLOBAL_CONFIG_FILE"
+        . "$GLOBAL_CONFIG_FILE"
     else
         echo -e "\033[1;34mConfiguration file not found. Creating a new one...\033[0m"
         prompt_api_key
@@ -111,7 +111,7 @@ TEMPERATURE=$TEMPERATURE
 MAX_TOKENS=$MAX_TOKENS
 EOF
         echo -e "\033[1;34mConfiguration file created in $USER_CONFIG_FILE.\033[0m"
-        source "$USER_CONFIG_FILE"
+        . "$USER_CONFIG_FILE"
     fi
 }
 
