@@ -2,7 +2,7 @@
 
 # Name of the script
 SCRIPT_NAME="gptcmd"
-CONFIG_FILE_NAME=".gptcmd_config"
+CONFIG_FILE_NAME="gptcmd.conf"
 INSTALL_PATH="/usr/local/bin"
 CONFIG_PATH="/etc"
 
@@ -53,7 +53,7 @@ setup_config() {
         echo "Creating configuration file at $CONFIG_FILE"
         echo "Enter your OpenAI API key:"
         read -s API_KEY
-        echo "Enter the model to use (e.g., gpt-4):"
+        echo "Enter the model to use (e.g., gpt-4o):"
         read MODEL
         echo "Enter the temperature (default 0.7):"
         read TEMPERATURE
@@ -76,26 +76,13 @@ EOF"
     fi
 }
 
-# Create alias
-create_alias() {
-    ALIAS_PATH="$HOME/.bashrc"
-    if ! grep -q "alias gptcmd" "$ALIAS_PATH"; then
-        echo "Creating alias in $ALIAS_PATH"
-        echo "alias gptcmd='$INSTALL_PATH/$SCRIPT_NAME'" >> "$ALIAS_PATH"
-        source "$ALIAS_PATH"
-    else
-        echo "Alias already exists in $ALIAS_PATH"
-    fi
-}
-
 # Main function
 main() {
     detect_package_manager
     install_dependencies
     download_script
     setup_config
-    create_alias
-    echo "Installation completed. You can use 'gptcmd' from the command line."
+    echo "Installation complete. You can now use '$SCRIPT_NAME' from anywhere in your terminal."
 }
 
 main
