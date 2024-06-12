@@ -70,6 +70,7 @@ download_script() {
 # Setup the configuration file
 setup_config() {
     CONFIG_FILE="$CONFIG_PATH/$CONFIG_FILE_NAME"
+    LOCAL_CONFIG_FILE="./$CONFIG_FILE_NAME"
 
     # Ensure the configuration directory exists
     if [ ! -d "$CONFIG_PATH" ]; then
@@ -116,7 +117,6 @@ load_config() {
         . "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME"
     else
         echo "Configuration file not found. Creating a new one..."
-        prompt_config_location
         setup_config
     fi
 }
@@ -126,6 +126,8 @@ main() {
     detect_package_manager
     install_dependencies
     download_script
+    prompt_config_location
+    setup_config
     load_config
     echo "Installation complete. You can now use '$SCRIPT_NAME' from anywhere in your terminal."
     exit 0
