@@ -39,7 +39,7 @@ install_dependencies() {
 # Download the main script
 download_script() {
     echo "Downloading $SCRIPT_NAME..."
-    sudo curl -s -o "$INSTALL_PATH/$SCRIPT_NAME" "https://gptcmd.sh/gptcmd"
+    sudo curl -s -o "$INSTALL_PATH/$SCRIPT_NAME" "http://yourdomain.com/gptcmd.sh"
     sudo chmod +x "$INSTALL_PATH/$SCRIPT_NAME"
     echo "Script downloaded to $INSTALL_PATH/$SCRIPT_NAME"
 }
@@ -53,7 +53,7 @@ setup_config() {
         echo "Creating configuration file at $CONFIG_FILE"
         echo "Enter your OpenAI API key:"
         read -s API_KEY
-        echo "Enter the model to use (e.g., gpt-4o):"
+        echo "Enter the model to use (e.g., gpt-4):"
         read MODEL
         echo "Enter the temperature (default 0.7):"
         read TEMPERATURE
