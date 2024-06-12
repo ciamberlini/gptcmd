@@ -4,7 +4,8 @@
 SCRIPT_NAME="gptcmd"
 CONFIG_FILE_NAME="gptcmd.conf"
 INSTALL_PATH="/usr/local/bin"
-CONFIG_PATH="/etc"
+GLOBAL_CONFIG_PATH="/etc"
+USER_CONFIG_PATH="$HOME/.gptcmd"
 
 # Function to detect the package manager
 detect_package_manager() {
@@ -36,6 +37,28 @@ install_dependencies() {
     esac
 }
 
+# Function to prompt for configuration file location
+prompt_config_location() {
+    exec < /dev/tty
+    echo -e "\033[1;34mWhere do you want to save the configuration?\033[0m"
+    echo -e "1) Global (/etc)"
+    echo -e "2) User ($USER_CONFIG_PATH)"
+    read -p "Choose 1 or 2: " CONFIG_LOCATION_CHOICE
+
+    case $CONFIG_LOCATION_CHOICE in
+        1)
+            CONFIG_PATH="$GLOBAL_CONFIG_PATH"
+            ;;
+        2)
+            CONFIG_PATH="$USER_CONFIG_PATH"
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to user configuration."
+            CONFIG_PATH="$USER_CONFIG_PATH"
+            ;;
+    esac
+}
+
 # Download the main script
 download_script() {
     echo "Downloading $SCRIPT_NAME..."
@@ -49,13 +72,18 @@ setup_config() {
     CONFIG_FILE="$CONFIG_PATH/$CONFIG_FILE_NAME"
     LOCAL_CONFIG_FILE="./$CONFIG_FILE_NAME"
 
+    # Ensure the configuration directory exists
+    if [ ! -d "$CONFIG_PATH" ]; then
+        mkdir -p "$CONFIG_PATH"
+    fi
+
     if [ ! -f "$CONFIG_FILE" ]; then
         echo "Creating configuration file at $CONFIG_FILE"
         exec < /dev/tty
         echo -e "\033[1;34mEnter your OpenAI API key:\033[0m"
         read -s API_KEY
         exec < /dev/tty
-        echo -e "\033[1;34mEnter the model to use (e.g., gpt-4):\033[0m"
+        echo -e "\033[1;34mEnter the model to use (e.g., gpt-4o):\033[0m"
         read MODEL
         exec < /dev/tty
         echo -e "\033[1;34mEnter the temperature (default 0.7):\033[0m"
@@ -79,10 +107,17 @@ EOF"
     else
         echo "Configuration file already exists at $CONFIG_FILE"
     fi
+}
 
-    # Link the local config file to the global config if needed
-    if [ ! -f "$LOCAL_CONFIG_FILE" ]; then
-        ln -s "$CONFIG_FILE" "$LOCAL_CONFIG_FILE"
+# Load the configuration file
+load_config() {
+    if [ -f "$USER_CONFIG_PATH/$CONFIG_FILE_NAME" ]; then
+        source "$USER_CONFIG_PATH/$CONFIG_FILE_NAME"
+    elif [ -f "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME" ]; then
+        source "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME"
+    else
+        echo "Configuration file not found. Creating a new one..."
+        setup_config
     fi
 }
 
@@ -91,8 +126,11 @@ main() {
     detect_package_manager
     install_dependencies
     download_script
+    prompt_config_location
     setup_config
+    load_config
     echo "Installation complete. You can now use '$SCRIPT_NAME' from anywhere in your terminal."
+    exit 0
 }
 
 main

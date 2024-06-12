@@ -59,37 +59,40 @@ sudo zypper install -y curl jq
 Run the script for the first time to configure the API key and other parameters:
 
 ```bash
-./gptcmd.sh
+gptcmd
 ```
-You will be prompted to enter:
+You will be prompted to choose the configuration file location and enter:
 
+- Global (`/etc`) or User (`~/.config/gptcmd`) configuration
 - Your OpenAI API key
-- The model to use (e.g., gpt-4)
+- The model to use (e.g., gpt-4o)
 - The temperature (default 0.7)
+- The max tokens (default 150)
 
-These parameters will be saved in a configuration file (gptcmd.conf) in your current directory or in /etc if executed with administrator permissions.
+These parameters will be saved in a configuration file (`gptcmd.conf`) either in your home directory (`~/.config/gptcmd`) or in `/etc`, depending on your choice.
 
 ### Usage
 ## Running the Command
 To use GPTcmd, run the script with the desired command:
 
 ```bash
-./gptcmd.sh "check if Apache is running"
+gptcmd "check if Apache is running"
 ```
 ## Parameters
-- <desired-command>: The command or description of the action you want to perform. GPTcmd will generate Bash commands to fulfill this request.
+- <prompt>: The command or description of the action you want to perform. GPTcmd will generate Bash commands to fulfill this request.
 
 ## Example:
 
 ```bash
-./gptcmd.sh "list all files larger than 100MB"
+gptcmd "list all files larger than 100MB"
 ```
 ### Configuration File
-The configuration file (gptcmd.conf) includes:
+The configuration file (`gptcmd.conf`) includes:
 
 - OPENAI_API_KEY: Your OpenAI API key.
-- MODEL: The OpenAI model to use (e.g., gpt-4).
+- MODEL: The OpenAI model to use (e.g., gpt-4o).
 - TEMPERATURE: The temperature for text generation (default 0.7).
+- MAX_TOKENS: The maximum number of tokens for the response (default 150).
 
 ## Contributing
 Feel free to open a pull request or report an issue on the GitHub repository.

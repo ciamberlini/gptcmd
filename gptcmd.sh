@@ -1,7 +1,9 @@
 #!/bin/bash
 
-CONFIG_FILE="/etc/gptcmd.conf"
-LOCAL_CONFIG_FILE="./gptcmd.conf"
+CONFIG_FILE_NAME="gptcmd.conf"
+GLOBAL_CONFIG_FILE="/etc/$CONFIG_FILE_NAME"
+USER_CONFIG_DIR="$HOME/.config/gptcmd"
+USER_CONFIG_FILE="$USER_CONFIG_DIR/$CONFIG_FILE_NAME"
 
 # Function to prompt for the API key
 prompt_api_key() {
@@ -84,41 +86,46 @@ gather_system_info() {
     OS_INFO=$(uname -a)
 }
 
-# Check if the configuration file exists
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-elif [ -f "$LOCAL_CONFIG_FILE" ]; then
-    source "$LOCAL_CONFIG_FILE"
-else
-    echo -e "\033[1;34mConfiguration file not found. Creating a new one...\033[0m"
-    prompt_api_key
-    prompt_config_params
-    cat << EOF > "$LOCAL_CONFIG_FILE"
+# Function to create the user configuration directory if it doesn't exist
+create_user_config_dir() {
+    if [ ! -d "$USER_CONFIG_DIR" ]; then
+        mkdir -p "$USER_CONFIG_DIR"
+    fi
+}
+
+# Check if the configuration file exists and load it
+load_config() {
+    if [ -f "$USER_CONFIG_FILE" ]; then
+        source "$USER_CONFIG_FILE"
+    elif [ -f "$GLOBAL_CONFIG_FILE" ]; then
+        source "$GLOBAL_CONFIG_FILE"
+    else
+        echo -e "\033[1;34mConfiguration file not found. Creating a new one...\033[0m"
+        prompt_api_key
+        prompt_config_params
+        create_user_config_dir
+        cat << EOF > "$USER_CONFIG_FILE"
 OPENAI_API_KEY=$API_KEY
 MODEL=$MODEL
 TEMPERATURE=$TEMPERATURE
 MAX_TOKENS=$MAX_TOKENS
 EOF
-    echo -e "\033[1;34mConfiguration file created in the current directory.\033[0m"
-    source "$LOCAL_CONFIG_FILE"
-fi
-
-# Check if the API key is set
-if [ -z "$OPENAI_API_KEY" ]; then
-    echo -e "\033[1;31mAPI key not found in the configuration file.\033[0m"
-    prompt_api_key
-    echo "OPENAI_API_KEY=$API_KEY" >> "$LOCAL_CONFIG_FILE"
-    source "$LOCAL_CONFIG_FILE"
-fi
+        echo -e "\033[1;34mConfiguration file created in $USER_CONFIG_FILE.\033[0m"
+        source "$USER_CONFIG_FILE"
+    fi
+}
 
 # Verify that the user has provided a command input
 if [ -z "$1" ]; then
-    echo -e "\033[1;31mUsage: $0 <desired-command>\033[0m"
+    echo -e "\033[1;31mUsage: $0 <prompt>\033[0m"
     exit 1
 fi
 
 # Define the desired command
 USER_PROMPT="$@"
+
+# Load the configuration
+load_config
 
 # Gather system information
 gather_system_info
