@@ -1,0 +1,138 @@
+#!/bin/bash
+
+CONFIG_FILE="/etc/gptcmd.conf"
+LOCAL_CONFIG_FILE="./gptcmd.conf"
+
+# Function to prompt for the API key
+prompt_api_key() {
+    echo "Enter your OpenAI API key:"
+    read -s API_KEY
+    echo
+}
+
+# Function to prompt for configuration parameters
+prompt_config_params() {
+    echo "Enter the model to use (e.g., gpt-4):"
+    read MODEL
+    echo "Enter the temperature (default 0.7):"
+    read TEMPERATURE
+    if [ -z "$TEMPERATURE" ]; then
+        TEMPERATURE=0.7
+    fi
+}
+
+# Function to call OpenAI API
+call_openai_completion() {
+    local prompt="$1"
+    local temperature="$2"
+    local max_tokens="$3"
+    local model="$4"
+    local openai_api_key="$5"
+    
+    local url="https://api.openai.com/v1/chat/completions"
+    local headers=(
+        "Content-Type: application/json"
+        "Authorization: Bearer $openai_api_key"
+    )
+    
+    # Prepare JSON request data
+    local request_data
+    request_data=$(jq -n \
+        --arg model "$model" \
+        --argjson temperature "$temperature" \
+        --argjson max_tokens "$max_tokens" \
+        --argjson messages "$prompt" \
+        '{
+            model: $model,
+            temperature: $temperature,
+            max_tokens: $max_tokens,
+            messages: $messages
+        }')
+
+    # Send the request
+    response=$(curl -s -S -L -X POST "$url" \
+        -H "${headers[0]}" \
+        -H "${headers[1]}" \
+        -d "$request_data")
+
+    echo "$response"
+}
+
+# Check if the configuration file exists
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+elif [ -f "$LOCAL_CONFIG_FILE" ]; then
+    source "$LOCAL_CONFIG_FILE"
+else
+    echo "Configuration file not found. Creating a new one..."
+    prompt_api_key
+    prompt_config_params
+    cat << EOF > "$LOCAL_CONFIG_FILE"
+OPENAI_API_KEY=$API_KEY
+MODEL=$MODEL
+TEMPERATURE=$TEMPERATURE
+EOF
+    echo "Configuration file created in the current directory."
+    source "$LOCAL_CONFIG_FILE"
+fi
+
+# Check if the API key is set
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo "API key not found in the configuration file."
+    prompt_api_key
+    echo "OPENAI_API_KEY=$API_KEY" >> "$LOCAL_CONFIG_FILE"
+    source "$LOCAL_CONFIG_FILE"
+fi
+
+# Verify that the user has provided a command input
+if [ -z "$1" ]; then
+    echo "Usage: $0 [-i <iterations>] <desired-command>"
+    exit 1
+fi
+
+# Parse options
+ITERATIONS=1
+while getopts ":i:" opt; do
+    case $opt in
+        i) ITERATIONS=$OPTARG ;;
+        \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
+    esac
+done
+shift $((OPTIND -1))
+
+# Define the desired command
+USER_PROMPT="$@"
+
+# Prepare the prompt
+PROMPT=$(jq -n --arg prompt "$USER_PROMPT" \
+    '[{"role": "system", "content": "Generate a JSON array of Bash commands for the following user prompt."},
+      {"role": "system", "content": "Return the commands in JSON format using the following structure: [{ \"cmd\": \"command\" }]"},
+      {"role": "user", "content": $prompt}]')
+
+for ((i = 1; i <= ITERATIONS; i++)); do
+    echo "Iteration $i/$ITERATIONS: Processing..."
+
+    # Call OpenAI completion API
+    RESPONSE=$(call_openai_completion "$PROMPT" "$TEMPERATURE" 150 "$MODEL" "$OPENAI_API_KEY")
+
+    # Log the raw response for debugging
+    echo "Raw API response: $RESPONSE"
+
+    # Extract the JSON commands string from the response
+    JSON_COMMANDS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content' | sed -n '/```json/,/```/p' | sed 's/```json//g' | sed 's/```//g')
+
+    if [ -z "$JSON_COMMANDS" ]; then
+        echo "No commands generated. Please check the input or the API response."
+        exit 1
+    fi
+
+    # Display the commands
+    echo "Generated commands for iteration $i:"
+    echo "$JSON_COMMANDS"
+
+    # Execute each command
+    echo "Executing commands..."
+    while IFS= read -r CMD; do
+        eval "$CMD"
+    done <<< "$(echo "$JSON_COMMANDS" | jq -r '.[].cmd')"
+done
