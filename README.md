@@ -55,6 +55,13 @@ sudo pacman -Syu --noconfirm curl jq
 ```bash
 sudo zypper install -y curl jq
 ```
+
+## Usage
+To update the GPTcmd script to the latest version, run the following command:
+```bash
+curl -s https://gptcmd.sh/update | sh
+```
+
 ## Configuration
 Run the script for the first time to configure the API key and other parameters:
 
