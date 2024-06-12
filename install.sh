@@ -83,8 +83,11 @@ setup_config() {
         echo -e "\033[1;34mEnter your OpenAI API key:\033[0m"
         read API_KEY
         exec < /dev/tty
-        echo -e "\033[1;34mEnter the model to use (e.g., gpt-4o):\033[0m"
+        echo -e "\033[1;34mEnter the model to use (default gpt-4o):\033[0m"
         read MODEL
+        if [ -z "$MODEL" ]; then
+            MODEL=gpt-4o
+        fi
         exec < /dev/tty
         echo -e "\033[1;34mEnter the temperature (default 0.7):\033[0m"
         read TEMPERATURE
