@@ -22,7 +22,7 @@ GPTcmd is a Bash script that utilizes the OpenAI API to generate and execute Bas
 You can install GPTcmd quickly using `curl`:
 
 ```bash
-curl https://gptcmd.sh/gptcmd.sh | sh
+curl gptcmd.sh | sh
 ```
 ### Clone the Repository
 Alternatively, you can clone the repository and install manually:
