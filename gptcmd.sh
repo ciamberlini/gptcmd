@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Check for the correct Bash binary
 if [ -z "$BASH_VERSION" ]; then
@@ -194,8 +194,8 @@ EOF
               {"role": "system", "content": "Operating System: \($os_info)"},
               {"role": "system", "content": "Return the commands in JSON format using the following structure: {\"need_another_iteration\": true, \"commands\": [{ \"cmd\": \"command\" }]}"},
               {"role": "user", "content": $prompt},
-              {"role": "assistant", "content": $output},
-              {"role": "assistant", "content": $cmd}]')
+              {"role": "assistant", "content": $cmd},
+              {"role": "assistant", "content": $output}]')
 
         ITERATION=$((ITERATION + 1))
     done
