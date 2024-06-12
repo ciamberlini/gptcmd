@@ -65,7 +65,7 @@ You will be prompted to choose the configuration file location and enter:
 
 - Global (`/etc`) or User (`~/.config/gptcmd`) configuration
 - Your OpenAI API key
-- The model to use (e.g., gpt-4o)
+- The model to use (default gpt-4o)
 - The temperature (default 0.7)
 - The max tokens (default 150)
 
@@ -90,9 +90,20 @@ gptcmd "list all files larger than 100MB"
 The configuration file (`gptcmd.conf`) includes:
 
 - OPENAI_API_KEY: Your OpenAI API key.
-- MODEL: The OpenAI model to use (e.g., gpt-4o).
+- MODEL: The OpenAI model to use (default gpt-4o).
 - TEMPERATURE: The temperature for text generation (default 0.7).
 - MAX_TOKENS: The maximum number of tokens for the response (default 150).
+
+## Uninstallation
+To uninstall GPTcmd, you can use the following command:
+
+```bash
+curl gptcmd.sh/uninstall | sh
+```
+This will:
+
+- Remove the gptcmd script from `/usr/local/bin`.
+- Remove the configuration file from either `/etc` or `$HOME/.gptcmd/`, depending on where it was saved.
 
 ## Contributing
 Feel free to open a pull request or report an issue on the GitHub repository.
