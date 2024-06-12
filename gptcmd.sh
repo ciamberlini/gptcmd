@@ -155,6 +155,7 @@ EOF
 
     NEED_ANOTHER_ITERATION=true
     ITERATION=1
+    EXECUTED_COMMANDS=()
 
     while $NEED_ANOTHER_ITERATION; do
         print_section_header "Iteration $ITERATION: Processing..."
@@ -174,28 +175,27 @@ EOF
         NEED_ANOTHER_ITERATION=$(echo "$JSON_COMMANDS" | jq -r '.need_another_iteration')
         COMMANDS=$(echo "$JSON_COMMANDS" | jq -r '.commands[].cmd')
 
-        # Display the commands
-        print_section_header "Generated commands for iteration $ITERATION"
-        while IFS= read -r CMD; do
-            print_command "$CMD"
-        done <<< "$COMMANDS"
-
-        # Execute each command and capture its output
+        # Display and execute each command, avoiding repetitions
         OUTPUT=""
         while IFS= read -r CMD; do
-            CMD_OUTPUT=$(eval "$CMD" 2>&1)
-            print_output "Output for command: $CMD\n$CMD_OUTPUT"
-            OUTPUT+="Command: $CMD\nOutput: $CMD_OUTPUT\n"
+            # Skip if the command is empty or already executed
+            if [[ -n "$CMD" && ! " ${EXECUTED_COMMANDS[@]} " =~ " ${CMD} " ]]; then
+                EXECUTED_COMMANDS+=("$CMD")
+                print_command "$CMD"
+                CMD_OUTPUT=$(eval "$CMD" 2>&1)
+                print_output "Output for command: $CMD\n$CMD_OUTPUT"
+                OUTPUT+="Command: $CMD\nOutput: $CMD_OUTPUT\n"
+            fi
         done <<< "$COMMANDS"
 
         # Update the prompt with the output of the executed commands
-        PROMPT=$(jq -n --arg os_info "$OS_INFO" --arg prompt "$USER_PROMPT" --arg output "$OUTPUT" --arg cmd "$CMD" \
+        PROMPT=$(jq -n --arg os_info "$OS_INFO" --arg prompt "$USER_PROMPT" --arg output "$OUTPUT" --argjson executed_commands "$(printf '%s\n' "${EXECUTED_COMMANDS[@]}" | jq -R . | jq -s .)" \
             '[{"role": "system", "content": "Generate a JSON array of Bash commands for the following user prompt."},
               {"role": "system", "content": "Operating System: \($os_info)"},
               {"role": "system", "content": "Return the commands in JSON format using the following structure: {\"need_another_iteration\": true, \"commands\": [{ \"cmd\": \"command\" }]}"},
               {"role": "user", "content": $prompt},
-              {"role": "assistant", "content": $cmd},
-              {"role": "assistant", "content": $output}]')
+              {"role": "assistant", "content": $output},
+              {"role": "assistant", "content": "Previously executed commands: \($executed_commands)"}]')
 
         ITERATION=$((ITERATION + 1))
     done
