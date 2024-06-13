@@ -115,5 +115,9 @@ This will:
 ## Contributing
 Feel free to open a pull request or report an issue on the GitHub repository.
 
+## Donations
+If you find GPTcmd useful, consider making a donation to support the project: [Paypal Donation](https://www.paypal.com/donate/?hosted_button_id=JDHXJHNW3P4MA)
+
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
