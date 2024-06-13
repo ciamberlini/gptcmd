@@ -1,2 +1,9 @@
-.htaccess
-thank-you.php
+*
+!gptcmd.sh
+!install.sh
+!LICENSE
+!README.md
+!uninstall.sh
+!update.sh
+.*.*
+!.gitignore
