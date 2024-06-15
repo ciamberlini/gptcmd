@@ -86,7 +86,7 @@ To use GPTcmd, run the script with the desired command:
 gptcmd "check if Apache is running"
 ```
 ## Parameters
-- <prompt>: The command or description of the action you want to perform. GPTcmd will generate Bash commands to fulfill this request.
+- `<prompt>`: The command or description of the action you want to perform. GPTcmd will generate Bash commands to fulfill this request.
 
 ## Example:
 
