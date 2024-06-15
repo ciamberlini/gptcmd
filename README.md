@@ -30,6 +30,7 @@ Alternatively, you can clone the repository and install manually:
 ```bash
 git clone https://github.com/ciamberlini/gptcmd.git
 cd gptcmd
+sh install.sh
 ```
 ## Install Dependencies
 Make sure you have curl and jq installed. You can install them using your system's package manager:
@@ -96,7 +97,7 @@ gptcmd "list all files larger than 100MB"
 ### Configuration File
 The configuration file (`gptcmd.conf`) includes:
 
-- OPENAI_API_KEY: Your OpenAI API key.
+- OPENAI_API_KEY: [Your OpenAI API key](https://platform.openai.com/api-keys).
 - MODEL: The OpenAI model to use (default gpt-4o).
 - TEMPERATURE: The temperature for text generation (default 0.7).
 - MAX_TOKENS: The maximum number of tokens for the response (default 150).
