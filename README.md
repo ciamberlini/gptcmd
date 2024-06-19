@@ -57,7 +57,7 @@ sudo pacman -Syu --noconfirm curl jq
 sudo zypper install -y curl jq
 ```
 
-## Usage
+## Update
 To update the GPTcmd script to the latest version, run the following command:
 ```bash
 curl gptcmd.sh/update | sh
@@ -89,6 +89,9 @@ gptcmd "check if Apache is running"
 ## Parameters
 - `<prompt>`: The command or description of the action you want to perform. GPTcmd will generate Bash commands to fulfill this request.
 
+## Optional Parameters
+- `-n`, `--dry-run`: Use this option to display the generated commands without actually executing them. This can be helpful for previewing the actions GPTcmd will take based on your prompt.
+  
 ## Example:
 
 ```bash

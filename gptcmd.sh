@@ -17,6 +17,7 @@ else
     GLOBAL_CONFIG_FILE="/etc/$CONFIG_FILE_NAME"
     USER_CONFIG_DIR="$HOME/.gptcmd"
     USER_CONFIG_FILE="$USER_CONFIG_DIR/$CONFIG_FILE_NAME"
+    DRY_RUN=false  # Default to false
 
     # Function to prompt for the API key
     prompt_api_key() {
@@ -133,12 +134,23 @@ EOF
 
     # Verify that the user has provided a command input
     if [ -z "$1" ]; then
-        echo -e "\033[1;31mUsage: $0 <prompt>\033[0m"
+        echo -e "\033[1;31mUsage: $0 [-n|--dry-run] <prompt>\033[0m"
         exit 1
     fi
 
-    # Define the desired command
-    USER_PROMPT="$@"
+    # Parse command line options
+    while [ "$1" != "" ]; do
+        case $1 in
+            -n | --dry-run )
+                DRY_RUN=true
+                ;;
+            * )
+                USER_PROMPT="$@"
+                break
+                ;;
+        esac
+        shift
+    done
 
     # Load the configuration
     load_config
@@ -175,16 +187,21 @@ EOF
         NEED_ANOTHER_ITERATION=$(echo "$JSON_COMMANDS" | jq -r '.need_another_iteration')
         COMMANDS=$(echo "$JSON_COMMANDS" | jq -r '.commands[].cmd')
 
-        # Display and execute each command, avoiding repetitions
+        # Display and execute or print each command, avoiding repetitions
         OUTPUT=""
         while IFS= read -r CMD; do
             # Skip if the command is empty or already executed
             if [[ -n "$CMD" && ! " ${EXECUTED_COMMANDS[@]} " =~ " ${CMD} " ]]; then
                 EXECUTED_COMMANDS+=("$CMD")
                 print_command "$CMD"
-                CMD_OUTPUT=$(eval "$CMD" 2>&1)
-                print_output "Output for command: $CMD\n$CMD_OUTPUT"
-                OUTPUT+="Command: $CMD\nOutput: $CMD_OUTPUT\n"
+                if $DRY_RUN; then
+                    print_output "Dry run: Command not executed."
+                    OUTPUT+="Command: $CMD\nDry run: Command not executed.\n"
+                else
+                    CMD_OUTPUT=$(eval "$CMD" 2>&1)
+                    print_output "Output for command: $CMD\n$CMD_OUTPUT"
+                    OUTPUT+="Command: $CMD\nOutput: $CMD_OUTPUT\n"
+                fi
             fi
         done <<< "$COMMANDS"
 
