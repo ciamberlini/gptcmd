@@ -1,11 +1,13 @@
 # GPTcmd
 
-GPTcmd is an advanced Bash script that utilizes the OpenAI API to generate and execute Bash commands based on a user-provided prompt. The script supports dynamic iterations, especially for complex tasks that require the output of previous commands to generate subsequent ones. It includes a variety of features to enhance usability, security, and functionality.
+GPTcmd is an advanced Bash script that utilizes the OpenAI API to generate and execute Bash commands based on user-provided prompts. The script supports dynamic iterations, especially for complex tasks that require the output of previous commands to generate subsequent ones. It includes a variety of features to enhance usability, security, and functionality.
 
 ## Features
 
+- **Interactive Mode by Default**: GPTcmd starts in interactive mode by default, allowing continuous interaction.
+- **Non-Interactive Mode**: Use the `-c` or `--command` option to execute a specific command without entering interactive mode.
+- **Prompt Length Verification**: Ensures that all prompts are at least 5 characters long for meaningful interactions.
 - **Improved Iteration Handling**: Manages complex requests over multiple iterations, maintaining context between commands.
-- **Interactive Mode**: Engage in a continuous conversation with GPTcmd for complex tasks.
 - **Safety Confirmation**: Prompts for confirmation before executing potentially harmful commands.
 - **Advanced Configuration Management**: Supports multiple configuration profiles.
 - **Error Handling and Logging**: Improved error reporting and command execution logging.
@@ -75,29 +77,47 @@ You will be prompted to enter:
 GPTcmd supports multiple configuration profiles. Use the `--config` flag to specify a different configuration file.
 
 ```bash
-gptcmd --config work "Check the server status"
+gptcmd --config work
 ```
 
 ## Usage
 
-### Running the Command
+### Interactive Mode (Default)
 
-To use GPTcmd, run the script with the desired command:
+To start GPTcmd in interactive mode, simply run:
 
 ```bash
-gptcmd "check if Apache is running"
+gptcmd
 ```
 
-### Handling Complex Tasks
+You can then enter your prompts one at a time. Type `exit` to quit the interactive mode.
 
-GPTcmd now better handles complex tasks that require multiple iterations. It maintains context between iterations, allowing it to use the output of previous commands to generate subsequent ones.
-
-### Interactive Mode
-
-Start GPTcmd in interactive mode for a continuous conversation:
+Example:
 
 ```bash
-gptcmd --interactive
+$ gptcmd
+Entering interactive mode. Type 'exit' to quit.
+> list all running Docker containers
+```
+
+### Non-Interactive Mode
+
+Use the `-c` or `--command` option to execute a specific prompt without entering interactive mode:
+
+```bash
+gptcmd -c "check disk usage in the home directory"
+```
+
+### Prompt Length Verification
+
+GPTcmd requires prompts to be at least 5 characters long to ensure meaningful interactions.
+
+### Dry Run Mode
+
+Use the `-n` or `--dry-run` option to display the commands that would be executed without actually running them:
+
+```bash
+gptcmd -n -c "delete temporary files older than 7 days"
 ```
 
 ### Command History
@@ -118,16 +138,31 @@ gptcmd --update
 
 ## Parameters
 
-- `<desired-command>`: The command or description of the action you want to perform.
-- `--interactive` or `-i`: Start GPTcmd in interactive mode.
-- `--config <profile>`: Use a specific configuration profile.
+- `-c`, `--command "<prompt>"`: Execute a specific prompt in non-interactive mode.
+- `-n`, `--dry-run`: Show the commands that would be executed without actually running them.
 - `--history`: Display the command history.
 - `--update`: Update GPTcmd to the latest version.
 
-## Example
+## Examples
+
+**Interactive Mode**:
 
 ```bash
-gptcmd "list all files larger than 100MB"
+$ gptcmd
+Entering interactive mode. Type 'exit' to quit.
+> find all PDF files in the Documents folder
+```
+
+**Non-Interactive Mode**:
+
+```bash
+gptcmd -c "list open network ports"
+```
+
+**Dry Run**:
+
+```bash
+gptcmd -n -c "restart the nginx service"
 ```
 
 ## Safety Features

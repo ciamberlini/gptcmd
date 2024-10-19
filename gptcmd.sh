@@ -23,7 +23,7 @@ else
     HISTORY_FILE="$USER_CONFIG_DIR/history.log"
     CACHE_DIR="$USER_CONFIG_DIR/cache"
     DRY_RUN=false  # Default to false
-    INTERACTIVE_MODE=false  # Default to false
+    INTERACTIVE_MODE=true  # Default to true
 
     # Create necessary directories
     mkdir -p "$USER_CONFIG_DIR" "$CACHE_DIR"
@@ -185,11 +185,17 @@ EOF
                 if [[ "$USER_PROMPT" == "exit" ]]; then
                     break
                 fi
+                # Check if prompt has at least 5 characters
+                if [ ${#USER_PROMPT} -lt 5 ]; then
+                    echo -e "\033[1;31mPrompt must be at least 5 characters long.\033[0m"
+                    continue
+                fi
                 process_prompt "$USER_PROMPT"
             done
         else
-            if [ -z "$USER_PROMPT" ]; then
-                echo -e "\033[1;31mUsage: $0 [-n|--dry-run] [-i|--interactive] <prompt>\033[0m"
+            # Check if prompt has at least 5 characters
+            if [ -z "$USER_PROMPT" ] || [ ${#USER_PROMPT} -lt 5 ]; then
+                echo -e "\033[1;31mPrompt must be at least 5 characters long.\033[0m"
                 exit 1
             fi
             process_prompt "$USER_PROMPT"
@@ -329,8 +335,10 @@ EOF
             -n | --dry-run )
                 DRY_RUN=true
                 ;;
-            -i | --interactive )
-                INTERACTIVE_MODE=true
+            -c | --command )
+                INTERACTIVE_MODE=false
+                shift
+                USER_PROMPT="$1"
                 ;;
             --history )
                 cat "$HISTORY_FILE"
@@ -341,8 +349,9 @@ EOF
                 exit 0
                 ;;
             * )
-                USER_PROMPT="$@"
-                break
+                echo -e "\033[1;31mInvalid option: $1\033[0m"
+                echo "Usage: $0 [-n|--dry-run] [-c|--command \"your prompt\"]"
+                exit 1
                 ;;
         esac
         shift
