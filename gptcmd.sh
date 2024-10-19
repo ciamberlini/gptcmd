@@ -163,6 +163,19 @@ EOF
         return 1
     }
 
+    # Function to add messages safely
+    add_message() {
+        local role="$1"
+        local content="$2"
+        local name="$3"
+        if [ "$role" == "function" ]; then
+            local message=$(jq -n --arg role "$role" --arg content "$content" --arg name "$name" '{role: $role, name: $name, content: $content}')
+        else
+            local message=$(jq -n --arg role "$role" --arg content "$content" '{role: $role, content: $content}')
+        fi
+        MESSAGES+=("$message")
+    }
+
     # Function to handle user prompt
     prompt_user() {
         if $INTERACTIVE_MODE; then
@@ -193,11 +206,14 @@ EOF
         # Initialize message history
         MESSAGES=()
 
+        # Gather system information
+        gather_system_info
+
         # Add initial messages
-        MESSAGES+=('{"role": "system", "content": "Operating System: '"$OS_INFO"'"}')
-        MESSAGES+=('{"role": "system", "content": "Language: '"$LANGUAGE"'"}')
-        MESSAGES+=('{"role": "system", "content": "You will help execute a series of Bash commands to achieve the following goal: '"$USER_PROMPT"'. After each command, wait for the output before providing the next command. If you require additional information, ask for it."}')
-        MESSAGES+=('{"role": "user", "content": "'"$USER_PROMPT"'"}')
+        add_message "system" "Operating System: $OS_INFO"
+        add_message "system" "Language: $LANGUAGE"
+        add_message "system" "You will help execute a series of Bash commands to achieve the following goal: $USER_PROMPT. After each command, wait for the output before providing the next command. If you require additional information, ask for it."
+        add_message "user" "$USER_PROMPT"
 
         # Functions for OpenAI API
         FUNCTIONS='[
@@ -214,6 +230,9 @@ EOF
             }
         ]'
 
+        # Convert FUNCTIONS to JSON
+        FUNCTIONS_JSON=$(echo "$FUNCTIONS" | jq '.')
+
         NEED_ANOTHER_ITERATION=true
         ITERATION=1
 
@@ -221,14 +240,14 @@ EOF
             print_section_header "Iteration $ITERATION: Processing..."
 
             # Prepare the prompt for the API
-            PROMPT=$(jq -n --argjson messages "$(printf '%s\n' "${MESSAGES[@]}" | jq -s '.')" '$messages')
+            PROMPT=$(printf '%s\n' "${MESSAGES[@]}" | jq -s '.')
 
             # Check cache
             CACHE_FILE="$CACHE_DIR/$(echo -n "$PROMPT" | md5sum | awk '{print $1}').json"
             if [ -f "$CACHE_FILE" ]; then
                 RESPONSE=$(cat "$CACHE_FILE")
             else
-                RESPONSE=$(call_openai_completion "$PROMPT" "$TEMPERATURE" "$MAX_TOKENS" "$MODEL" "$OPENAI_API_KEY" "$FUNCTIONS")
+                RESPONSE=$(call_openai_completion "$PROMPT" "$TEMPERATURE" "$MAX_TOKENS" "$MODEL" "$OPENAI_API_KEY" "$FUNCTIONS_JSON")
                 echo "$RESPONSE" > "$CACHE_FILE"
             fi
 
@@ -240,7 +259,7 @@ EOF
             FUNCTION_CALL=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.name')
 
             if [ "$FUNCTION_CALL" == "execute_command" ]; then
-                COMMAND_TO_EXECUTE=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.arguments' | jq -r '.command')
+                COMMAND_TO_EXECUTE=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.arguments.command')
 
                 # Display the command
                 print_command "$COMMAND_TO_EXECUTE"
@@ -278,8 +297,7 @@ EOF
                 print_output "Output for command: $COMMAND_TO_EXECUTE\n$CMD_OUTPUT"
 
                 # Add function response to messages
-                FUNCTION_RESPONSE='{"role": "function", "name": "execute_command", "content": "'"$CMD_OUTPUT"'"}'
-                MESSAGES+=("$FUNCTION_RESPONSE")
+                add_message "function" "$CMD_OUTPUT" "execute_command"
 
                 # Indicate that another iteration may be needed
                 NEED_ANOTHER_ITERATION=true
@@ -331,9 +349,6 @@ EOF
 
     # Load the configuration
     load_config
-
-    # Gather system information
-    gather_system_info
 
     # Handle user prompt
     prompt_user
