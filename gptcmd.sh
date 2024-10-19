@@ -256,10 +256,11 @@ EOF
             MESSAGES+=("$(echo "$ASSISTANT_MESSAGE" | jq -c '.')")
 
             # Check if the assistant requested a function call
-            FUNCTION_CALL=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.name')
+            FUNCTION_CALL=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.name // empty')
 
             if [ "$FUNCTION_CALL" == "execute_command" ]; then
-                COMMAND_TO_EXECUTE=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.arguments.command')
+                # Extract and parse the arguments JSON string
+                COMMAND_TO_EXECUTE=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.arguments | fromjson | .command')
 
                 # Display the command
                 print_command "$COMMAND_TO_EXECUTE"
