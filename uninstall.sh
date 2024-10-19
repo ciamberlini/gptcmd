@@ -51,6 +51,14 @@ remove_user_config() {
     fi
 }
 
+# Function to remove logs and cache
+remove_logs_and_cache() {
+    if [ -d "$USER_CONFIG_DIR" ]; then
+        print_message "Removing logs and cache in $USER_CONFIG_DIR..." "1;32"
+        rm -rf "$USER_CONFIG_DIR"
+    fi
+}
+
 # Main function to perform uninstallation
 uninstall() {
     print_message "Starting uninstallation of $SCRIPT_NAME..." "1;34"
@@ -58,6 +66,7 @@ uninstall() {
     remove_script
     remove_global_config
     remove_user_config
+    remove_logs_and_cache
 
     print_message "Uninstallation complete." "1;32"
 }

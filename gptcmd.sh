@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Check for the correct Bash binary
+# Ensure the script is executed with Bash
 if [ -z "$BASH_VERSION" ]; then
     # Find Bash in common locations and re-execute the script
     if [ -x /bin/bash ]; then
@@ -13,11 +13,20 @@ if [ -z "$BASH_VERSION" ]; then
     fi
 else
     # Actual script content starts here
+
+    # Set configuration file names and paths
     CONFIG_FILE_NAME="gptcmd.conf"
     GLOBAL_CONFIG_FILE="/etc/$CONFIG_FILE_NAME"
     USER_CONFIG_DIR="$HOME/.gptcmd"
     USER_CONFIG_FILE="$USER_CONFIG_DIR/$CONFIG_FILE_NAME"
+    LOG_FILE="$USER_CONFIG_DIR/gptcmd.log"
+    HISTORY_FILE="$USER_CONFIG_DIR/history.log"
+    CACHE_DIR="$USER_CONFIG_DIR/cache"
     DRY_RUN=false  # Default to false
+    INTERACTIVE_MODE=false  # Default to false
+
+    # Create necessary directories
+    mkdir -p "$USER_CONFIG_DIR" "$CACHE_DIR"
 
     # Function to prompt for the API key
     prompt_api_key() {
@@ -28,10 +37,10 @@ else
 
     # Function to prompt for configuration parameters
     prompt_config_params() {
-        echo -e "\033[1;34mEnter the model to use (default gpt-4o):\033[0m"
+        echo -e "\033[1;34mEnter the model to use (default gpt-4):\033[0m"
         read MODEL
         if [ -z "$MODEL" ]; then
-            MODEL=gpt-4o
+            MODEL="gpt-4"
         fi
         echo -e "\033[1;34mEnter the temperature (default 0.7):\033[0m"
         read TEMPERATURE
@@ -52,6 +61,7 @@ else
         local max_tokens="$3"
         local model="$4"
         local openai_api_key="$5"
+        local functions="$6"
         
         local url="https://api.openai.com/v1/chat/completions"
         local headers=(
@@ -66,11 +76,13 @@ else
             --arg temperature "$temperature" \
             --arg max_tokens "$max_tokens" \
             --argjson messages "$prompt" \
+            --argjson functions "$functions" \
             '{
                 model: $model,
                 temperature: ($temperature | tonumber),
                 max_tokens: ($max_tokens | tonumber),
-                messages: $messages
+                messages: $messages,
+                functions: $functions
             }')
 
         # Send the request
@@ -101,6 +113,7 @@ else
     # Function to gather system information
     gather_system_info() {
         OS_INFO=$(uname -a)
+        LANGUAGE=${LANG%_*}
     }
 
     # Function to create the user configuration directory if it doesn't exist
@@ -110,7 +123,7 @@ else
         fi
     }
 
-    # Check if the configuration file exists and load it
+    # Function to load the configuration
     load_config() {
         if [ -f "$USER_CONFIG_FILE" ]; then
             source "$USER_CONFIG_FILE"
@@ -130,19 +143,183 @@ EOF
             echo -e "\033[1;34mConfiguration file created in $USER_CONFIG_FILE.\033[0m"
             source "$USER_CONFIG_FILE"
         fi
+
+        # Check if API key is set in environment variable
+        if [ -z "$OPENAI_API_KEY" ]; then
+            echo -e "\033[1;31mAPI key not found. Please set the OPENAI_API_KEY environment variable.\033[0m"
+            exit 1
+        fi
     }
 
-    # Verify that the user has provided a command input
-    if [ -z "$1" ]; then
-        echo -e "\033[1;31mUsage: $0 [-n|--dry-run] <prompt>\033[0m"
-        exit 1
-    fi
+    # Function to check for dangerous commands
+    is_dangerous_command() {
+        local cmd="$1"
+        local dangerous_patterns=("rm -rf" "mkfs" ">:0" "dd if=" "shutdown" "reboot" "init 0" ":(){ :|: & };:")
+        for pattern in "${dangerous_patterns[@]}"; do
+            if [[ "$cmd" == *"$pattern"* ]]; then
+                return 0
+            fi
+        done
+        return 1
+    }
+
+    # Function to handle user prompt
+    prompt_user() {
+        if $INTERACTIVE_MODE; then
+            echo -e "\033[1;34mEntering interactive mode. Type 'exit' to quit.\033[0m"
+            while true; do
+                read -p "> " USER_PROMPT
+                if [[ "$USER_PROMPT" == "exit" ]]; then
+                    break
+                fi
+                process_prompt "$USER_PROMPT"
+            done
+        else
+            if [ -z "$USER_PROMPT" ]; then
+                echo -e "\033[1;31mUsage: $0 [-n|--dry-run] [-i|--interactive] <prompt>\033[0m"
+                exit 1
+            fi
+            process_prompt "$USER_PROMPT"
+        fi
+    }
+
+    # Function to process the user prompt
+    process_prompt() {
+        local USER_PROMPT="$1"
+
+        # Append to history
+        echo "$USER_PROMPT" >> "$HISTORY_FILE"
+
+        # Initialize message history
+        MESSAGES=()
+
+        # Add initial messages
+        MESSAGES+=('{"role": "system", "content": "Operating System: '"$OS_INFO"'"}')
+        MESSAGES+=('{"role": "system", "content": "Language: '"$LANGUAGE"'"}')
+        MESSAGES+=('{"role": "system", "content": "You will help execute a series of Bash commands to achieve the following goal: '"$USER_PROMPT"'. After each command, wait for the output before providing the next command. If you require additional information, ask for it."}')
+        MESSAGES+=('{"role": "user", "content": "'"$USER_PROMPT"'"}')
+
+        # Functions for OpenAI API
+        FUNCTIONS='[
+            {
+                "name": "execute_command",
+                "description": "Executes a Bash command and returns the output.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": { "type": "string", "description": "The command to execute." }
+                    },
+                    "required": ["command"]
+                }
+            }
+        ]'
+
+        NEED_ANOTHER_ITERATION=true
+        ITERATION=1
+
+        while $NEED_ANOTHER_ITERATION; do
+            print_section_header "Iteration $ITERATION: Processing..."
+
+            # Prepare the prompt for the API
+            PROMPT=$(jq -n --argjson messages "$(printf '%s\n' "${MESSAGES[@]}" | jq -s '.')" '$messages')
+
+            # Check cache
+            CACHE_FILE="$CACHE_DIR/$(echo -n "$PROMPT" | md5sum | awk '{print $1}').json"
+            if [ -f "$CACHE_FILE" ]; then
+                RESPONSE=$(cat "$CACHE_FILE")
+            else
+                RESPONSE=$(call_openai_completion "$PROMPT" "$TEMPERATURE" "$MAX_TOKENS" "$MODEL" "$OPENAI_API_KEY" "$FUNCTIONS")
+                echo "$RESPONSE" > "$CACHE_FILE"
+            fi
+
+            # Append assistant's message to message history
+            ASSISTANT_MESSAGE=$(echo "$RESPONSE" | jq '.choices[0].message')
+            MESSAGES+=("$(echo "$ASSISTANT_MESSAGE" | jq -c '.')")
+
+            # Check if the assistant requested a function call
+            FUNCTION_CALL=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.name')
+
+            if [ "$FUNCTION_CALL" == "execute_command" ]; then
+                COMMAND_TO_EXECUTE=$(echo "$ASSISTANT_MESSAGE" | jq -r '.function_call.arguments' | jq -r '.command')
+
+                # Display the command
+                print_command "$COMMAND_TO_EXECUTE"
+
+                # Append command to history
+                echo "$COMMAND_TO_EXECUTE" >> "$HISTORY_FILE"
+
+                # Check for dangerous commands
+                if is_dangerous_command "$COMMAND_TO_EXECUTE"; then
+                    echo -e "\033[1;31mDangerous command detected: $COMMAND_TO_EXECUTE\033[0m"
+                    read -p "Are you sure you want to execute this command? (y/N): " CONFIRM
+                    if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
+                        echo -e "\033[1;33mSkipping command: $COMMAND_TO_EXECUTE\033[0m"
+                        CMD_OUTPUT="Command skipped by user."
+                    else
+                        # Execute command and log output
+                        if $DRY_RUN; then
+                            print_output "Dry run: Command not executed."
+                            CMD_OUTPUT="Dry run: Command not executed."
+                        else
+                            CMD_OUTPUT=$(eval "$COMMAND_TO_EXECUTE" 2>&1 | tee -a "$LOG_FILE")
+                        fi
+                    fi
+                else
+                    # Execute command and log output
+                    if $DRY_RUN; then
+                        print_output "Dry run: Command not executed."
+                        CMD_OUTPUT="Dry run: Command not executed."
+                    else
+                        CMD_OUTPUT=$(eval "$COMMAND_TO_EXECUTE" 2>&1 | tee -a "$LOG_FILE")
+                    fi
+                fi
+
+                # Display command output
+                print_output "Output for command: $COMMAND_TO_EXECUTE\n$CMD_OUTPUT"
+
+                # Add function response to messages
+                FUNCTION_RESPONSE='{"role": "function", "name": "execute_command", "content": "'"$CMD_OUTPUT"'"}'
+                MESSAGES+=("$FUNCTION_RESPONSE")
+
+                # Indicate that another iteration may be needed
+                NEED_ANOTHER_ITERATION=true
+
+            else
+                # No function call, consider the conversation over
+                NEED_ANOTHER_ITERATION=false
+            fi
+
+            ITERATION=$((ITERATION + 1))
+        done
+
+        print_section_header "Finished processing after $((ITERATION - 1)) iterations."
+    }
+
+    # Function to update the script
+    update_script() {
+        echo -e "\033[1;34mUpdating GPTcmd...\033[0m"
+        SCRIPT_PATH=$(realpath "$0")
+        curl -s -o "$SCRIPT_PATH" "https://gptcmd.sh/gptcmd.sh"
+        chmod +x "$SCRIPT_PATH"
+        echo -e "\033[1;32mGPTcmd has been updated to the latest version.\033[0m"
+    }
 
     # Parse command line options
     while [ "$1" != "" ]; do
         case $1 in
             -n | --dry-run )
                 DRY_RUN=true
+                ;;
+            -i | --interactive )
+                INTERACTIVE_MODE=true
+                ;;
+            --history )
+                cat "$HISTORY_FILE"
+                exit 0
+                ;;
+            --update )
+                update_script
+                exit 0
                 ;;
             * )
                 USER_PROMPT="$@"
@@ -158,64 +335,7 @@ EOF
     # Gather system information
     gather_system_info
 
-    # Prepare the initial prompt
-    PROMPT=$(jq -n --arg os_info "$OS_INFO" --arg prompt "$USER_PROMPT" \
-        '[{"role": "system", "content": "Generate a JSON array of Bash commands for the following user prompt."},
-          {"role": "system", "content": "Operating System: \($os_info)"},
-          {"role": "system", "content": "Return the commands in JSON format using the following structure: {\"need_another_iteration\": true, \"commands\": [{ \"cmd\": \"command\" }]}"},
-          {"role": "user", "content": $prompt}]')
+    # Handle user prompt
+    prompt_user
 
-    NEED_ANOTHER_ITERATION=true
-    ITERATION=1
-    EXECUTED_COMMANDS=()
-
-    while $NEED_ANOTHER_ITERATION; do
-        print_section_header "Iteration $ITERATION: Processing..."
-
-        # Call OpenAI completion API
-        RESPONSE=$(call_openai_completion "$PROMPT" "$TEMPERATURE" "$MAX_TOKENS" "$MODEL" "$OPENAI_API_KEY")
-
-        # Extract the JSON commands string from the response
-        JSON_COMMANDS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content' | sed -n '/```json/,/```/p' | sed 's/```json//g' | sed 's/```//g')
-
-        if [ -z "$JSON_COMMANDS" ]; then
-            echo -e "\033[1;31mNo commands generated. Please check the input or the API response.\033[0m"
-            exit 1
-        fi
-
-        # Parse JSON to get need_another_iteration flag and commands
-        NEED_ANOTHER_ITERATION=$(echo "$JSON_COMMANDS" | jq -r '.need_another_iteration')
-        COMMANDS=$(echo "$JSON_COMMANDS" | jq -r '.commands[].cmd')
-
-        # Display and execute or print each command, avoiding repetitions
-        OUTPUT=""
-        while IFS= read -r CMD; do
-            # Skip if the command is empty or already executed
-            if [[ -n "$CMD" && ! " ${EXECUTED_COMMANDS[@]} " =~ " ${CMD} " ]]; then
-                EXECUTED_COMMANDS+=("$CMD")
-                print_command "$CMD"
-                if $DRY_RUN; then
-                    print_output "Dry run: Command not executed."
-                    OUTPUT+="Command: $CMD\nDry run: Command not executed.\n"
-                else
-                    CMD_OUTPUT=$(eval "$CMD" 2>&1)
-                    print_output "Output for command: $CMD\n$CMD_OUTPUT"
-                    OUTPUT+="Command: $CMD\nOutput: $CMD_OUTPUT\n"
-                fi
-            fi
-        done <<< "$COMMANDS"
-
-        # Update the prompt with the output of the executed commands
-        PROMPT=$(jq -n --arg os_info "$OS_INFO" --arg prompt "$USER_PROMPT" --arg output "$OUTPUT" --argjson executed_commands "$(printf '%s\n' "${EXECUTED_COMMANDS[@]}" | jq -R . | jq -s .)" \
-            '[{"role": "system", "content": "Generate a JSON array of Bash commands for the following user prompt."},
-              {"role": "system", "content": "Operating System: \($os_info)"},
-              {"role": "system", "content": "Return the commands in JSON format using the following structure: {\"need_another_iteration\": true, \"commands\": [{ \"cmd\": \"command\" }]}"},
-              {"role": "user", "content": $prompt},
-              {"role": "assistant", "content": $output},
-              {"role": "assistant", "content": "Previously executed commands: \($executed_commands)"}]')
-
-        ITERATION=$((ITERATION + 1))
-    done
-
-    print_section_header "Finished processing after $((ITERATION - 1)) iterations."
 fi

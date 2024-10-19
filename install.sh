@@ -7,6 +7,16 @@ INSTALL_PATH="/usr/local/bin"
 GLOBAL_CONFIG_PATH="/etc"
 USER_CONFIG_PATH="$HOME/.gptcmd"
 
+# Function to detect the operating system
+detect_os() {
+    OS_TYPE=$(uname)
+    case "$OS_TYPE" in
+        Linux*)     OS_NAME="Linux";;
+        Darwin*)    OS_NAME="macOS";;
+        *)          OS_NAME="Unknown";;
+    esac
+}
+
 # Function to detect the package manager
 detect_package_manager() {
     if command -v apt-get &> /dev/null; then
@@ -19,8 +29,10 @@ detect_package_manager() {
         PACKAGE_MANAGER="pacman"
     elif command -v zypper &> /dev/null; then
         PACKAGE_MANAGER="zypper"
+    elif command -v brew &> /dev/null; then
+        PACKAGE_MANAGER="brew"
     else
-        echo "Unsupported package manager. Install 'curl' and 'jq' manually."
+        echo "Unsupported package manager. Please install 'curl' and 'jq' manually."
         exit 1
     fi
 }
@@ -34,14 +46,23 @@ install_dependencies() {
         dnf) sudo dnf install -y curl jq ;;
         pacman) sudo pacman -Syu --noconfirm curl jq ;;
         zypper) sudo zypper install -y curl jq ;;
+        brew) brew install curl jq ;;
     esac
 }
 
-# Function to prompt for configuration file location
+# Download the main script
+download_script() {
+    echo "Downloading $SCRIPT_NAME..."
+    sudo curl -s -o "$INSTALL_PATH/$SCRIPT_NAME" "https://gptcmd.sh/gptcmd.sh"
+    sudo chmod +x "$INSTALL_PATH/$SCRIPT_NAME"
+    echo "Script downloaded to $INSTALL_PATH/$SCRIPT_NAME"
+}
+
+# Prompt for configuration location
 prompt_config_location() {
     exec < /dev/tty
     echo -e "\033[1;34mWhere do you want to save the configuration?\033[0m"
-    echo -e "1) Global (/etc)"
+    echo -e "1) Global ($GLOBAL_CONFIG_PATH)"
     echo -e "2) User ($USER_CONFIG_PATH)"
     read -p "Choose 1 or 2: " CONFIG_LOCATION_CHOICE
 
@@ -59,18 +80,9 @@ prompt_config_location() {
     esac
 }
 
-# Download the main script
-download_script() {
-    echo "Downloading $SCRIPT_NAME..."
-    sudo curl -s -o "$INSTALL_PATH/$SCRIPT_NAME" "https://gptcmd.sh/gptcmd.sh"
-    sudo chmod +x "$INSTALL_PATH/$SCRIPT_NAME"
-    echo "Script downloaded to $INSTALL_PATH/$SCRIPT_NAME"
-}
-
 # Setup the configuration file
 setup_config() {
     CONFIG_FILE="$CONFIG_PATH/$CONFIG_FILE_NAME"
-    LOCAL_CONFIG_FILE="./$CONFIG_FILE_NAME"
 
     # Ensure the configuration directory exists
     if [ ! -d "$CONFIG_PATH" ]; then
@@ -81,12 +93,13 @@ setup_config() {
         echo "Creating configuration file at $CONFIG_FILE"
         exec < /dev/tty
         echo -e "\033[1;34mEnter your OpenAI API key:\033[0m"
-        read API_KEY
+        read -s API_KEY
+        echo
         exec < /dev/tty
-        echo -e "\033[1;34mEnter the model to use (default gpt-4o):\033[0m"
+        echo -e "\033[1;34mEnter the model to use (default gpt-4):\033[0m"
         read MODEL
         if [ -z "$MODEL" ]; then
-            MODEL=gpt-4o
+            MODEL="gpt-4"
         fi
         exec < /dev/tty
         echo -e "\033[1;34mEnter the temperature (default 0.7):\033[0m"
@@ -100,40 +113,27 @@ setup_config() {
         if [ -z "$MAX_TOKENS" ]; then
             MAX_TOKENS=150
         fi
-        sudo bash -c "cat << EOF > $CONFIG_FILE
+        cat << EOF > "$CONFIG_FILE"
 OPENAI_API_KEY=$API_KEY
 MODEL=$MODEL
 TEMPERATURE=$TEMPERATURE
 MAX_TOKENS=$MAX_TOKENS
-EOF"
-        sudo chmod 600 "$CONFIG_FILE"
+EOF
+        chmod 600 "$CONFIG_FILE"
     else
         echo "Configuration file already exists at $CONFIG_FILE"
     fi
 }
 
-# Load the configuration file
-load_config() {
-    if [ -f "$USER_CONFIG_PATH/$CONFIG_FILE_NAME" ]; then
-        . "$USER_CONFIG_PATH/$CONFIG_FILE_NAME"
-    elif [ -f "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME" ]; then
-        . "$GLOBAL_CONFIG_PATH/$CONFIG_FILE_NAME"
-    else
-        echo "Configuration file not found. Creating a new one..."
-        setup_config
-    fi
-}
-
 # Main function
 main() {
+    detect_os
     detect_package_manager
     install_dependencies
     download_script
     prompt_config_location
     setup_config
-    load_config
     echo "Installation complete. You can now use '$SCRIPT_NAME' from anywhere in your terminal."
-    exit 0
 }
 
 main
